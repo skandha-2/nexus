@@ -30,4 +30,6 @@ jobs:
       log_label_selector: "app=nexus"
       log_tail_lines: "200"
     secrets:
-      KUBE_CONFIG: ${{ secrets.KUBECONFIG_B64 }}
+      # You can pass either one. Here we pass base64 since you have it.
+      KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+      # KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}  # (optional alternative)

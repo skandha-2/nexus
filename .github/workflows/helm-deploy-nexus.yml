@@ -40,8 +40,11 @@ on:
         default: "200"
         type: string
     secrets:
+      # Either of these can be provided by the caller. Both optional here; we'll validate at runtime.
       KUBE_CONFIG:
-        required: true
+        required: false
+      KUBECONFIG_B64:
+        required: false
 
 permissions:
   contents: read
@@ -65,32 +68,44 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Write kubeconfig from secret
-        shell: bash
-        env:
-          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
-        run: |
-          set -e
-          mkdir -p ~/.kube
-          echo "${KUBECONFIG_B64}" | base64 -d > ~/.kube/config
-          chmod 600 ~/.kube/config
-
-      - name: Setup kubectl
+      - name: Set up kubectl
         uses: azure/setup-kubectl@v4
         with:
           version: "v1.34.1"
 
-      - name: Setup Helm
+      - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
           version: "v3.15.2"
 
-      - name: Verify cluster access
+      - name: Write kubeconfig (supports raw or base64)
+        shell: bash
+        env:
+          RAW: ${{ secrets.KUBE_CONFIG }}
+          B64: ${{ secrets.KUBECONFIG_B64 }}
         run: |
-          echo "🔍 Checking cluster version and nodes..."
-          kubectl version --client || kubectl version
+          set -euo pipefail
+          mkdir -p ~/.kube
+          if [ -n "${RAW:-}" ]; then
+            printf '%s\n' "$RAW" > ~/.kube/config
+          elif [ -n "${B64:-}" ]; then
+            echo "$B64" | base64 -d > ~/.kube/config
+          else
+            echo "ERROR: Provide either KUBE_CONFIG (raw kubeconfig) or KUBECONFIG_B64 (base64) as a secret to this workflow." >&2
+            exit 1
+          fi
+          chmod 600 ~/.kube/config
+          # If your kubeconfig has multiple contexts, uncomment and set:
+          # kubectl config use-context YOUR-CONTEXT
+
+      - name: Verify cluster access
+        shell: bash
+        run: |
+          echo "🔍 Checking cluster access..."
+          kubectl cluster-info
           kubectl get nodes -o wide
-      
+          kubectl get ns
+
       - name: Create namespace (idempotent)
         shell: bash
         run: |
@@ -131,9 +146,7 @@ jobs:
         shell: bash
         run: |
           echo "⏳ Waiting for deployment rollout..."
-          # Try common resource kinds; ignore errors if some don't exist
           kubectl -n "$RELEASE_NAMESPACE" rollout status deploy/"$RELEASE_NAME" --timeout=5m || true
-          # If your chart labels Pods with app=<release_name>, this helps double-check readiness:
           kubectl -n "$RELEASE_NAMESPACE" get pods -l "app=${RELEASE_NAME}" -o wide || true
 
       - name: Show Service info
