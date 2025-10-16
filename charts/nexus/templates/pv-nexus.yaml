@@ -1,0 +1,22 @@
+# pv-nexus.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nexus-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-storage
+  persistentVolumeReclaimPolicy: Retain
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - node1   # <-- change to your actual node name: kubectl get nodes -o wide
+  local:
+    path: /var/lib/nexus-data  # <-- path on that node
