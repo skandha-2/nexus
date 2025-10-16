@@ -1,0 +1,33 @@
+name: Deploy Nexus (Helm)
+
+on:
+  workflow_dispatch:
+    inputs:
+      values_file:
+        description: "Values override file (optional)"
+        default: ""
+        type: string
+      set_values:
+        description: "Extra --set key=val pairs (optional)"
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/helm-deploy-nexus.yml
+    with:
+      chart_dir: charts/nexus
+      release_name: nexus
+      namespace: nexus
+      values_file: ${{ inputs.values_file }}
+      set_values: ${{ inputs.set_values }}
+      wait_for_rollout: "true"
+      print_logs: "true"
+      log_label_selector: "app=nexus"
+      log_tail_lines: "200"
+    secrets:
+      KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_B64 }}
