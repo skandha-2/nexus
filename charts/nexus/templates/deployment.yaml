@@ -18,6 +18,20 @@ spec:
         - name: nexus
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # --- BEGIN: set admin password at runtime from Secret ---
+          env:
+            - name: NEXUS_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.adminPassword.existingSecret }}
+                  key: {{ .Values.adminPassword.existingSecretKey }}
+          command: ["/bin/sh","-c"]
+          args:
+            - >
+              export INSTALL4J_ADD_VM_PARAMS="-Dnexus.security.randompassword=false
+              -Dnexus.security.initialPassword=${NEXUS_ADMIN_PASSWORD}";
+              exec /opt/sonatype/nexus/bin/nexus run
+          # --- END ---
           ports:
             - containerPort: 8081
               name: http

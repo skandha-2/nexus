@@ -32,6 +32,9 @@ jobs:
       log_label_selector: "app=nexus"
       log_tail_lines: "200"
     secrets:
-      # You can pass either one. Here we pass base64 since you have it.
+      # Prefer base64 kubeconfig
       KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
-      # KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}  # (optional alternative)
+      # Or pass raw kubeconfig instead:
+      # KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+      # If you later enable custom admin password via Secret in the chart:
+      # NEXUS_ADMIN_PASSWORD: ${{ secrets.NEXUS_ADMIN_PASSWORD }}

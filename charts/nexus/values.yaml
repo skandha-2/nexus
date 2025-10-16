@@ -24,13 +24,13 @@ resources:
     cpu: "1"
     memory: "2Gi"
 
-nodeSelector:
-  kubernetes.io/hostname: node1   # <-- the node where the local path exists
+# IMPORTANT: your PVC (nexus-pvc) is currently bound and the pod is on node2.
+# Either remove the pin or set it to node2 to avoid a scheduler mismatch.
+nodeSelector: {}   # <- recommended: leave empty so the pod lands where the PV binds
+# nodeSelector:
+#   kubernetes.io/hostname: node2
 
-tolerations:
-  - key: "node-role.kubernetes.io/control-plane"
-    operator: "Exists"
-    effect: "NoSchedule"
+tolerations: []    # remove control-plane toleration unless you really want to run on control-plane
 
 affinity: {}
 
@@ -44,3 +44,8 @@ ingress:
         - path: /
           pathType: Prefix
   tls: []
+
+# --- NEW: how we supply the admin password securely
+adminPassword:
+  existingSecret: "admin"   # name of the secret you will create
+  existingSecretKey: "password"   # key inside that secret

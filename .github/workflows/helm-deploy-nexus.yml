@@ -40,11 +40,14 @@ on:
         default: "200"
         type: string
     secrets:
-      # Either of these can be provided by the caller. Both optional here; we'll validate at runtime.
+      # Provide ONE of these:
       KUBE_CONFIG:
         required: false
       KUBECONFIG_B64:
         required: false
+      # Optional: if you later enable "custom admin password via Secret" in your chart
+      # NEXUS_ADMIN_PASSWORD:
+      #   required: false
 
 permissions:
   contents: read
@@ -95,7 +98,6 @@ jobs:
             exit 1
           fi
           chmod 600 ~/.kube/config
-          # If your kubeconfig has multiple contexts, uncomment and set:
           # kubectl config use-context YOUR-CONTEXT
 
       - name: Verify cluster access
@@ -105,6 +107,20 @@ jobs:
           kubectl cluster-info
           kubectl get nodes -o wide
           kubectl get ns
+
+      # ──────────────────────────────────────────────────────────────
+      # OPTIONAL: Only if your chart supports admin password via Secret
+      # (i.e., you added env+command in deployment to read NEXUS_ADMIN_PASSWORD)
+      # - name: Ensure nexus-admin secret from GH secret
+      #   if: ${{ secrets.NEXUS_ADMIN_PASSWORD != '' }}
+      #   shell: bash
+      #   run: |
+      #     kubectl -n "$RELEASE_NAMESPACE" create secret generic nexus-admin \
+      #       --from-literal=password="${NEXUS_ADMIN_PASSWORD}" \
+      #       --dry-run=client -o yaml | kubectl apply -f -
+      #   env:
+      #     NEXUS_ADMIN_PASSWORD: ${{ secrets.NEXUS_ADMIN_PASSWORD }}
+      # ──────────────────────────────────────────────────────────────
 
       - name: Create namespace (idempotent)
         shell: bash
@@ -122,19 +138,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           VALUES_ARG=()
           if [ -n "$VALUES_FILE" ] && [ -f "$VALUES_FILE" ]; then
             echo "➡ Using values file: $VALUES_FILE"
             VALUES_ARG+=( -f "$VALUES_FILE" )
           fi
-
           SET_ARG=()
           if [ -n "$SET_VALUES" ]; then
             echo "➡ Using --set: $SET_VALUES"
             SET_ARG+=( --set "$SET_VALUES" )
           fi
-
           helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
             --namespace "$RELEASE_NAMESPACE" \
             "${VALUES_ARG[@]}" \
@@ -146,7 +159,7 @@ jobs:
         shell: bash
         run: |
           echo "⏳ Waiting for deployment rollout..."
-          kubectl -n "$RELEASE_NAMESPACE" rollout status deploy/"$RELEASE_NAME" --timeout=5m || true
+          kubectl -n "$RELEASE_NAMESPACE" rollout status deploy/"$RELEASE_NAME" --timeout=8m || true
           kubectl -n "$RELEASE_NAMESPACE" get pods -l "app=${RELEASE_NAME}" -o wide || true
 
       - name: Show Service info
@@ -182,3 +195,21 @@ jobs:
           fi
           echo "📜 Pod: $POD"
           kubectl -n "$RELEASE_NAMESPACE" logs --tail="$LOG_TAIL" "$POD" || true
+
+      - name: Show initial admin password (retry for first-boot)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "🔐 Trying to read /nexus-data/admin.password (it appears near the end of first boot)..."
+          ATTEMPTS=24   # ~2 minutes total (24 * 5s)
+          INTERVAL=5
+          for i in $(seq 1 $ATTEMPTS); do
+            if kubectl -n "$RELEASE_NAMESPACE" exec deploy/"$RELEASE_NAME" -- sh -lc 'test -f /nexus-data/admin.password'; then
+              echo "✅ Found admin.password:"
+              kubectl -n "$RELEASE_NAMESPACE" exec deploy/"$RELEASE_NAME" -- cat /nexus-data/admin.password || true
+              exit 0
+            fi
+            echo "⏳ admin.password not present yet (attempt $i/$ATTEMPTS). Waiting ${INTERVAL}s..."
+            sleep $INTERVAL
+          done
+          echo "⚠️ admin.password not found. If this is not a fresh data dir, someone may have already completed the first-login (file is then deleted)."
