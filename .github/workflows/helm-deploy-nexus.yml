@@ -65,20 +65,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Write kubeconfig
-        shell: bash
-        run: |
-          mkdir -p ~/.kube
-          echo "${KUBE_CONFIG}" > ~/.kube/config
-          chmod 600 ~/.kube/config
-        env:
-          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_B64 }}
-
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.31.0"
 
       - name: Set up Helm
         uses: azure/setup-helm@v4
+        with:
+          version: "v3.15.2"
+
+      - name: Write kubeconfig
+        shell: bash
+        run: echo "$KUBE_CONFIG_DATA" | base64 -d > "$KUBECONFIG_FILE"
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBECONFIG_B64 }}
+
+      - name: Secure kubeconfig permissions
+        run: chmod 600 "$KUBECONFIG_FILE"
 
       - name: Create namespace (idempotent)
         shell: bash
