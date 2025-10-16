@@ -3,16 +3,16 @@ kind: Deployment
 metadata:
   name: {{ include "nexus.fullname" . }}
   labels:
-    app: {{ include "nexus.name" . }}
+    {{- include "nexus.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ include "nexus.name" . }}
+      {{- include "nexus.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ include "nexus.name" . }}
+        {{- include "nexus.selectorLabels" . | nindent 8 }}
     spec:
       containers:
         - name: nexus
