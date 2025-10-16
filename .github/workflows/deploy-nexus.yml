@@ -11,6 +11,8 @@ on:
         description: "Extra --set key=val pairs (optional)"
         default: ""
         type: string
+  push:
+    branches: [ main ]
 
 permissions:
   contents: read
