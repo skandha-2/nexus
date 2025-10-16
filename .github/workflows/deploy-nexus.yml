@@ -30,4 +30,4 @@ jobs:
       log_label_selector: "app=nexus"
       log_tail_lines: "200"
     secrets:
-      KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_B64 }}
+      KUBE_CONFIG: ${{ secrets.KUBECONFIG_B64 }}
