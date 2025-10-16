@@ -65,25 +65,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up kubectl
+      - name: Write kubeconfig from secret
+        shell: bash
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          set -e
+          mkdir -p ~/.kube
+          echo "${KUBECONFIG_B64}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Setup kubectl
         uses: azure/setup-kubectl@v4
         with:
           version: "v1.31.0"
 
-      - name: Set up Helm
+      - name: Setup Helm
         uses: azure/setup-helm@v4
         with:
           version: "v3.15.2"
 
-      - name: Write kubeconfig
-        shell: bash
-        run: echo "$KUBE_CONFIG_DATA" | base64 -d > "$KUBECONFIG_FILE"
-        env:
-          KUBE_CONFIG_DATA: ${{ secrets.KUBECONFIG_B64 }}
-
-      - name: Secure kubeconfig permissions
-        run: chmod 600 "$KUBECONFIG_FILE"
-
+      - name: Verify cluster access
+        run: |
+          echo "🔍 Checking cluster version and nodes..."
+          kubectl version --client || kubectl version
+          kubectl get nodes -o wide
+      
       - name: Create namespace (idempotent)
         shell: bash
         run: |
