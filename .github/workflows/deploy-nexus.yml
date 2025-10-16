@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   deploy:
-    uses: ./.github/workflows/helm-deploy-nexus.yml
+    uses: skandha-2/re-usable-workflows/.github/workflows/helm-deploy-nexus.yml@main
     with:
       chart_dir: charts/nexus
       release_name: nexus
