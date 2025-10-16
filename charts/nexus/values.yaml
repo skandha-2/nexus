@@ -24,9 +24,13 @@ resources:
     cpu: "1"
     memory: "2Gi"
 
-nodeSelector: {}
+nodeSelector:
+  kubernetes.io/hostname: node1   # <-- the node where the local path exists
 
-tolerations: []
+tolerations:
+  - key: "node-role.kubernetes.io/control-plane"
+    operator: "Exists"
+    effect: "NoSchedule"
 
 affinity: {}
 
