@@ -20,6 +20,6 @@ app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
 {{- end }}
 
 {{- define "nexus.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "nexus.name" . | quote }}
-app.kubernetes.io/instance: {{ .Release.Name | quote }}
+app.kubernetes.io/name: {{ include "nexus.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
