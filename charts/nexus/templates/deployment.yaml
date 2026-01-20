@@ -13,34 +13,104 @@ spec:
     metadata:
       labels:
         {{- include "nexus.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ default (include "nexus.fullname" .) .Values.serviceAccount.name }}
+      {{- else if .Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- end }}
+
+      {{- if .Values.securityContext.enabled }}
+      securityContext:
+        fsGroup: {{ .Values.securityContext.fsGroup }}
+      {{- end }}
+
       containers:
         - name: nexus
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          # --- BEGIN: set admin password at runtime from Secret ---
-          env:
-            - name: NEXUS_ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.adminPassword.existingSecret }}
-                  key: {{ .Values.adminPassword.existingSecretKey }}
-          command: ["/bin/sh","-c"]
-          args:
-            - >
-              export INSTALL4J_ADD_VM_PARAMS="-Dnexus.security.randompassword=false
-              -Dnexus.security.initialPassword=${NEXUS_ADMIN_PASSWORD}";
-              exec /opt/sonatype/nexus/bin/nexus run
-          # --- END ---
+
+          {{- if .Values.containerSecurityContext.enabled }}
+          securityContext:
+            runAsNonRoot: {{ .Values.containerSecurityContext.runAsNonRoot }}
+            runAsUser: {{ .Values.containerSecurityContext.runAsUser }}
+            runAsGroup: {{ .Values.containerSecurityContext.runAsGroup }}
+            allowPrivilegeEscalation: {{ .Values.containerSecurityContext.allowPrivilegeEscalation }}
+            readOnlyRootFilesystem: {{ .Values.containerSecurityContext.readOnlyRootFilesystem }}
+          {{- end }}
+
           ports:
-            - containerPort: 8081
-              name: http
-          volumeMounts:
-            - name: nexus-data
-              mountPath: /nexus-data
+            - name: http
+              containerPort: 8081
+              protocol: TCP
+          {{- if .Values.service.dockerPort.enabled }}
+            - name: docker
+              containerPort: {{ .Values.service.dockerPort.port }}
+              protocol: TCP
+          {{- end }}
+
+          env:
+            {{- toYaml .Values.env | nindent 12 }}
+
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.livenessProbe.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+          {{- end }}
+
+          {{- if .Values.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+          {{- end }}
+
+          volumeMounts:
+            - name: data
+              mountPath: /nexus-data
+
       volumes:
-        - name: nexus-data
+        - name: data
+          {{- if .Values.persistence.enabled }}
           persistentVolumeClaim:
-            claimName: {{ if .Values.persistence.existingClaim }}{{ .Values.persistence.existingClaim }}{{ else }}{{ include "nexus.fullname" . }}-pvc{{ end }}
+            claimName: {{ include "nexus.fullname" . }}-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
