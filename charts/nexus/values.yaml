@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: sonatype/nexus3
-  tag: "3.76.1"
+  tag: "3.87.2-alpine"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
