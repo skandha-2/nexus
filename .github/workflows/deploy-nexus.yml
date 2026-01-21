@@ -6,7 +6,6 @@ on:
     paths:
       - "charts/nexus/**"
       - ".github/workflows/publish-helm-oci.yml"
-
 jobs:
   publish:
     runs-on: arc-runners-dev
