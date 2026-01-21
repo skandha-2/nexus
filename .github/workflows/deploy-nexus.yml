@@ -1,40 +1,43 @@
-name: Deploy Nexus (Helm)
+name: Publish Nexus Helm Chart (OCI)
 
 on:
-  workflow_dispatch:
-    inputs:
-      values_file:
-        description: "Values override file (optional)"
-        default: ""
-        type: string
-      set_values:
-        description: "Extra --set key=val pairs (optional)"
-        default: ""
-        type: string
   push:
-    branches: [ main ]
-
-permissions:
-  contents: read
-  packages: read
-
+    branches: ["dev"]
+    paths:
+      - "charts/nexus/**"
+      - ".github/workflows/publish-helm-oci.yml"
 jobs:
-  deploy:
-    uses: skandha-2/re-usable-workflows/.github/workflows/helm-deploy-nexus.yml@main
-    with:
-      chart_dir: charts/nexus
-      release_name: nexus
-      namespace: nexus
-      values_file: ${{ inputs.values_file }}
-      set_values: ${{ inputs.set_values }}
-      wait_for_rollout: "true"
-      print_logs: "true"
-      log_label_selector: "app=nexus"
-      log_tail_lines: "200"
-    secrets:
-      # Prefer base64 kubeconfig
-      KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
-      # Or pass raw kubeconfig instead:
-      # KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-      # If you later enable custom admin password via Secret in the chart:
-      # NEXUS_ADMIN_PASSWORD: ${{ secrets.NEXUS_ADMIN_PASSWORD }}
+  publish:
+    runs-on: arc-runners-dev
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.15.4
+
+      - name: Helm lint
+        run: helm lint charts/nexus
+
+      - name: Login to GHCR
+        env:
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        run: |
+          echo "$GHCR_TOKEN" | helm registry login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+
+      - name: Package chart
+        run: |
+          mkdir -p dist
+          helm package charts/nexus --destination dist
+
+      - name: Push chart to GHCR (OCI)
+        run: |
+          CHART_TGZ="$(ls -1 dist/*.tgz | head -n 1)"
+          helm push "$CHART_TGZ" oci://ghcr.io/${{ github.repository_owner }}/helm

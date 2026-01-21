@@ -2,50 +2,89 @@ replicaCount: 1
 
 image:
   repository: sonatype/nexus3
-  tag: "3.68.1"
+  tag: "3.87.2"
   pullPolicy: IfNotPresent
 
-service:
-  type: LoadBalancer
-  port: 8081
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
 
-persistence:
+serviceAccount:
+  create: false
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+securityContext:
   enabled: true
-  storageClass: "local-storage"
-  accessMode: ReadWriteOnce
-  size: 20Gi
-  existingClaim: ""
+  fsGroup: 200
 
-resources:
-  requests:
-    cpu: "500m"
-    memory: "1Gi"
-  limits:
-    cpu: "1"
-    memory: "2Gi"
+containerSecurityContext:
+  enabled: true
+  runAsNonRoot: true
+  runAsUser: 200
+  runAsGroup: 200
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
 
-# IMPORTANT: your PVC (nexus-pvc) is currently bound and the pod is on node2.
-# Either remove the pin or set it to node2 to avoid a scheduler mismatch.
-nodeSelector: {}   # <- recommended: leave empty so the pod lands where the PV binds
-# nodeSelector:
-#   kubernetes.io/hostname: node2
-
-tolerations: []    # remove control-plane toleration unless you really want to run on control-plane
-
-affinity: {}
+service:
+  type: ClusterIP
+  port: 8081
+  dockerPort:
+    enabled: false
+    port: 5000
 
 ingress:
   enabled: false
   className: ""
   annotations: {}
   hosts:
-    - host: nexus.local
+    - host: nexus.example.com
       paths:
         - path: /
           pathType: Prefix
   tls: []
+  # - secretName: nexus-tls
+  #   hosts:
+  #     - nexus.example.com
 
-# --- NEW: how we supply the admin password securely
-adminPassword:
-  existingSecret: "admin"   # name of the secret you will create
-  existingSecretKey: "password"   # key inside that secret
+resources:
+  requests:
+    cpu: 250m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+persistence:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  size: 20Gi
+  storageClassName: ""   # set to your storageclass or leave empty for default
+  annotations: {}
+
+env:
+  - name: INSTALL4J_ADD_VM_PARAMS
+    value: "-Xms1024m -Xmx2048m -XX:MaxDirectMemorySize=2048m"
+
+livenessProbe:
+  enabled: true
+  path: /
+  initialDelaySeconds: 120
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 6
+
+readinessProbe:
+  enabled: true
+  path: /
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6

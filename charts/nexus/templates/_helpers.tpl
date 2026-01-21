@@ -1,48 +1,25 @@
-{{/*
-Expand the name of the chart.
-*/}}
 {{- define "nexus.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
+{{- end }}
 
-{{/*
-Create a default fully qualified app name.
-*/}}
 {{- define "nexus.fullname" -}}
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
 {{- else -}}
-{{- $name := include "nexus.name" . -}}
-{{- if contains $name .Release.Name -}}
-{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
+{{- $name := default .Chart.Name .Values.nameOverride -}}
 {{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
-{{- end -}}
-{{- end -}}
+{{- end }}
 
-{{/*
-Chart label
-*/}}
-{{- define "nexus.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" -}}
-{{- end -}}
-
-{{/*
-Common labels
-*/}}
 {{- define "nexus.labels" -}}
-app.kubernetes.io/name: {{ include "nexus.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | quote }}
+app.kubernetes.io/name: {{ include "nexus.name" . | quote }}
+app.kubernetes.io/instance: {{ .Release.Name | quote }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-helm.sh/chart: {{ include "nexus.chart" . }}
-{{- end -}}
+app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+{{- end }}
 
-{{/*
-Selector labels (must match pod labels)
-*/}}
 {{- define "nexus.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "nexus.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-{{- end -}}
+{{- end }}
