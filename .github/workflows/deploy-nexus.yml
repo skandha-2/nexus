@@ -2,7 +2,8 @@ name: Publish Nexus Helm Chart (OCI)
 
 on:
   push:
-    branches: ["dev"]
+    branches: 
+      - dev
     paths:
       - "charts/nexus/**"
       - ".github/workflows/publish-helm-oci.yml"
