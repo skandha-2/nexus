@@ -1,5 +1,4 @@
 replicaCount: 1
-
 image:
   repository: sonatype/nexus3
   tag: "3.89.1"
