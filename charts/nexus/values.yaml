@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: sonatype/nexus3
-  tag: "3.89.1"
+  tag: "3.92.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
