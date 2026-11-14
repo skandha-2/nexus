@@ -68,6 +68,7 @@ persistence:
   storageClassName: ""   # set to your storageclass or leave empty for default
   annotations: {}
 
+
 env:
   - name: INSTALL4J_ADD_VM_PARAMS
     value: "-Xms1024m -Xmx2048m -XX:MaxDirectMemorySize=2048m"
